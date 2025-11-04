@@ -1,4 +1,4 @@
-# app.py — SACRED SOUND CODEX v7 — ON-SCREEN KEYBOARD + MIDI + FULL FEATURES
+# app.py — SACRED SOUND CODEX v8 — ON-SCREEN KEYBOARD + MP3 + NO ERRORS
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
@@ -98,13 +98,12 @@ def get_tone(freq, duration, preset="sine"):
 # ——— ON-SCREEN KEYBOARD ———
 def on_screen_keyboard(base_freq=444, tone_preset="crystal"):
     notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-    midi_notes = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71]
+    midi_notes = list(range(48, 72))  # C3 to B4 (2 octaves)
     freqs = [base_freq * (2 ** ((m - 69) / 12.0)) for m in midi_notes]
     
-    # CSS for piano
     piano_css = """
     <style>
-    .piano { display: flex; justify-content: center; margin: 20px 0; }
+    .piano { display: flex; justify-content: center; margin: 20px 0; flex-wrap: wrap; }
     .white-key { 
         width: 40px; height: 160px; background: #fff; border: 1px solid #ccc; 
         margin: 0 1px; border-radius: 5px; display: flex; align-items: flex-end; 
@@ -120,74 +119,62 @@ def on_screen_keyboard(base_freq=444, tone_preset="crystal"):
     }
     .black-key:active { background: #00ff88; transform: translateY(2px); }
     .key-label { margin-bottom: 10px; }
+    @media (max-width: 600px) {
+        .white-key { width: 32px; height: 140px; }
+        .black-key { width: 22px; height: 90px; }
+    }
     </style>
     """
     st.markdown(piano_css, unsafe_allow_html=True)
 
-    # Build piano HTML
     piano_html = '<div class="piano">'
-    black_keys = [1, 3, 6, 8, 10]  # C#, D#, F#, G#, A#
+    black_positions = [1, 3, 6, 8, 10]  # C#, D#, F#, G#, A#
     
-    for i in range(24):  # 2 octaves
+    for i in range(24):
         note_idx = i % 12
-        is_black = note_idx in black_keys
+        is_black = note_idx in black_positions and i % 12 != 0
         freq = freqs[i]
-        note_name = notes[note_idx] + str(3 + (i // 12))
+        octave = 3 + (i // 12)
+        note_name = notes[note_idx] + str(octave)
         
-        if is_black:
-            piano_html += f'''
-            <div class="black-key" onclick="playNote({freq}, '{tone_preset}')">
-                <div class="key-label">{note_name}</div>
-            </div>
-            '''
-        else:
-            piano_html += f'''
-            <div class="white-key" onclick="playNote({freq}, '{tone_preset}')">
-                <div class="key-label">{note_name}</div>
-            </div>
-            '''
+        key_class = "black-key" if is_black else "white-key"
+        piano_html += f'''
+        <div class="{key_class}" onclick="playNote({freq}, '{tone_preset}')">
+            <div class="key-label">{note_name}</div>
+        </div>
+        '''
     piano_html += '</div>'
 
-    # JavaScript to play note
     js = f"""
     <script>
     function playNote(freq, preset) {{
-        const audio = new Audio();
-        const url = `/tone?freq=${{freq}}&preset=${{preset}}&t=${{Date.now()}}`;
-        audio.src = url;
-        audio.play().catch(() => {{}});
-        if (parent && parent.postMessage) {{
-            parent.postMessage({{type: 'note_played', freq: freq}}, '*');
-        }}
+        const url = `/?freq=${{freq}}&preset=${{preset}}&t=${{Date.now()}}`;
+        window.location.href = url;
     }}
     </script>
     """
     st.markdown(piano_html + js, unsafe_allow_html=True)
-
-    # Streamlit endpoint for tone generation
-    if st.session_state.get("last_freq") != freqs[-1]:  # Init
-        st.session_state.last_freq = freqs[-1]
-
     return freqs
 
-# ——— TONE ENDPOINT ———
-@st.experimental_singleton
-def tone_cache():
+# ——— TONE ENDPOINT (USING CACHE_RESOURCE) ———
+@st.cache_resource
+def _tone_cache():
     return {}
 
 if "tone_cache" not in st.session_state:
-    st.session_state.tone_cache = {}
+    st.session_state.tone_cache = _tone_cache()
 
 def get_cached_tone(freq, preset):
     key = f"{freq:.2f}_{preset}"
-    if key not in st.session_state.tone_cache:
+    cache = st.session_state.tone_cache
+    if key not in cache:
         tone = get_tone(freq, 3.0, preset)
         wav = io.BytesIO()
         tone.export(wav, format="wav")
-        st.session_state.tone_cache[key] = wav.getvalue()
-    return st.session_state.tone_cache[key]
+        cache[key] = wav.getvalue()
+    return cache[key]
 
-# Handle tone requests
+# Handle tone playback via URL
 query_params = st.experimental_get_query_params()
 if "freq" in query_params and "preset" in query_params:
     freq = float(query_params["freq"][0])
@@ -212,7 +199,68 @@ def record_worker():
         except queue.Empty:
             continue
 
-# ——— MAIN UI ———
+# ——— DRUM LAYER ———
+def add_shamanic_drum_layer(audio, bpm, drum_type, base_freq, duration_sec, pattern="heartbeat"):
+    interval = 60 / bpm
+    drum = get_tone(base_freq, 0.5, "shaman_drum") if drum_type == "shaman_drum" else get_tone(base_freq, 0.5, "bass_drum")
+    rhythm_audio = AudioSegment.silent(duration=duration_sec*1000)
+    patterns = {"heartbeat": [0, 0.6, 1.6, 2.2], "4/4": [0, 1, 2, 3]}
+    beats = patterns.get(pattern, [0, 1, 2, 3])
+    pos = 0
+    while pos < duration_sec:
+        for b in beats:
+            if pos + b*interval < duration_sec:
+                rhythm_audio = rhythm_audio.overlay(drum, position=int((pos + b*interval)*1000))
+        pos += 4 * interval
+    return audio.overlay(rhythm_audio - 10)
+
+# ——— MAIN GENERATOR ———
+def generate_full_track(layers, duration_min):
+    duration_sec = duration_min * 60
+    final_audio = AudioSegment.silent(duration=duration_sec*1000)
+    all_freqs = []
+
+    for layer in layers:
+        layer_audio = AudioSegment.silent(duration=duration_sec*1000)
+        freqs = layer.get("freqs", [528])
+        all_freqs.extend(freqs)
+
+        for f in freqs:
+            tone = get_tone(f, duration_sec, layer.get("tone", "sine"))
+            layer_audio = layer_audio.overlay(tone)
+
+        if layer.get("binaural", 0) > 0:
+            beat = layer["binaural"]
+            left = layer_audio
+            right = layer_audio.low_pass_filter(beat + 100).high_pass_filter(beat - 100).apply_gain(-3)
+            layer_audio = left.pan(-0.5).overlay(right.pan(0.5))
+
+        if layer.get("drum", False):
+            layer_audio = add_shamanic_drum_layer(
+                layer_audio, layer.get("bpm", 60), layer.get("drum_type", "shaman_drum"),
+                layer.get("drum_freq", 60), duration_sec, layer.get("pattern", "heartbeat")
+            )
+
+        final_audio = final_audio.overlay(layer_audio)
+
+    return final_audio, list(set(all_freqs))
+
+# ——— CYMATIC ———
+def draw_cymatic(freqs, title="Cymatic Mandala"):
+    fig, ax = plt.subplots(figsize=(7,7), facecolor='black')
+    ax.set_facecolor('black')
+    t = np.linspace(0, 2*np.pi, 1200)
+    colors = ['#00ff88', '#ff00ff', '#00ffff', '#ffff00', '#ff8800', '#88ff00', '#ff0088']
+    for i, f in enumerate(freqs[:7]):
+        r = 1 + 0.4 * np.sin(12 * t + f * t * 0.08)
+        x = r * np.cos(t * (f % 9))
+        y = r * np.sin(t * (f % 9))
+        ax.plot(x, y, color=colors[i % len(colors)], alpha=0.9, linewidth=1.8)
+    ax.axis('off')
+    ax.set_title(title, color='white', fontsize=16, pad=20)
+    return fig
+
+# ——— UI ———
 st.title("Sacred Sound Codex — ON-SCREEN KEYBOARD")
 st.markdown("### *Tap. Play. Record. Ascend.*")
 
@@ -243,8 +291,7 @@ with tab1:
                 if st.session_state.record_thread:
                     st.session_state.record_thread.join(timeout=1)
                 st.session_state.recording = False
-                wav = io.BytesIO()
-                mp3 = io.BytesIO()
+                wav = io.BytesIO(); mp3 = io.BytesIO()
                 st.session_state.recorded_audio.export(wav, format="wav")
                 st.session_state.recorded_audio.export(mp3, format="mp3", bitrate="192k")
                 wav.seek(0); mp3.seek(0)
@@ -294,17 +341,18 @@ with tab2:
             wav = io.BytesIO(); mp3 = io.BytesIO()
             audio.export(wav, format="wav"); audio.export(mp3, format="mp3", bitrate="192k")
             wav.seek(0); mp3.seek(0)
+            st.audio(wav, format="audio/wav")
             col1, col2 = st.columns(2)
             with col1:
                 st.download_button("WAV", data=wav, file_name=f"codex_{int(time.time())}.wav", mime="audio/wav")
             with col2:
                 st.download_button("MP3", data=mp3, file_name=f"codex_{int(time.time())}.mp3", mime="audio/mpeg")
 
-# ——— CYMATIC ———
+# ——— CYMATIC DISPLAY ———
 if 'freqs' in locals():
     st.pyplot(draw_cymatic(freqs))
 
-# ——— INSTALL ———
+# ——— INSTALL GUIDE ———
 st.markdown("""
 ---
 **Install to Android**  
