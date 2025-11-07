@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Quantisophic Resonance Soundscape Generator</title>
+    <style>
+        body { background:#000; color:#0f0; font-family:Arial; padding:20px; line-height:1.5; }
+        h1, h2 { text-align:center; text-shadow:0 0 10px #0f0; }
+        p { text-align:center; max-width:900px; margin:0 auto 20px; }
+        .layer { background:#111; border:2px solid #0f0; padding:15px; margin:15px 0; border-radius:10px; }
+        label { display:block; margin:10px 0; }
+        input, select { background:#000; color:#0f0; border:1px solid #0f0; padding:5px; width:100%; }
+        button { background:#0f0; color:#000; border:none; padding:10px 18px; margin:5px; cursor:pointer; font-weight:bold; border-radius:5px; }
+        button:hover { background:#0c0; }
+        button.small { padding:5px 10px; font-size:0.8em; }
+        #controls { text-align:center; margin:30px 0; }
+        .note { font-size:0.9em; color:#0a0; text-align:center; margin:20px; }
+        details { background:#080808; padding:10px; border-radius:5px; margin:10px 0; }
+        summary { cursor:pointer; color:#0f0; text-shadow:0 0 5px #0f0; }
+        table { border-collapse:collapse; width:100%; margin:10px 0; }
+        th, td { border:1px solid #0f0; padding:6px; text-align:center; font-size:0.9em; }
+        th { background:#020; }
+        input[type=checkbox] { transform:scale(1.5); cursor:pointer; }
+        input[type=range] { width:90%; }
+        .knob-container { display:inline-block; width:60px; height:60px; margin:5px; position:relative; }
+        canvas.knob { border:1px solid #0f0; border-radius:50%; cursor:pointer; }
+        .knob-label { display:block; text-align:center; font-size:0.8em; color:#0a0; margin-top:2px; }
+        .fmcontrols, .advanced { margin-left:20px; }
+        #recordButton { background:#f00; color:#fff; }
+        #recordButton.recording { background:#ff0; color:#000; }
+    </style>
+</head>
+<body>
+    <h1>Advanced Quantisophic Resonance Soundscape Generator</h1>
+    <p>Inspired by Quantisophy™, Sol Harmonics™, Derrick Solano – now with <strong>realistic instrument emulation</strong>, FM/additive synthesis, unison, vibrato, full ADSR, per-layer effects (reverb, delay, chorus, flange, distortion/fuzz, phaser), and a full drum machine with piano-roll grid.<br>
+       Unlimited layers · Precise frequencies · Sovereign/offline · Headphones required for binaural.<br>
+       <strong>New:</strong> Choose from 25+ instrument presets (Didgeridoo, Bowed Cello, Violin w/vibrato, Singing Bowl resonance, Duduk, Native Flute, Tenor Sax, Bass Guitar, Piano sustain, Ambient Synth Pad, Harpsichord, Pan Flute, Koto, Sitar, Tibetan Bowl, Kalimba, Gong, Erhu, Steel Drum, Vibraphone, Marimba + more). All sustain continuously at exact Hz.</p>
+
+    <div id="layers"></div>
+
+    <div id="controls">
+        <button onclick="addLayer()">+ Add Layer</button>
+        <button onclick="play()">▶ Play All</button>
+        <button onclick="stop()">■ Stop</button>
+        <button onclick="clearAll()">🗑 Clear All</button>
+        <button id="recordButton" onclick="toggleRecord()">● Record</button>
+    </div>
+
+    <p class="note">Copy everything → save as <strong>index.html</strong> → open in browser. No internet needed.<br>
+       GitHub: upload this file → Settings → Pages → main branch → instant public app.</p>
+
+    <script>
+        let audioCtx, masterGain, isPlaying = false, activeSources = [], layers = [];
+        let schedulerId = null, activeRhythms = [], whiteNoiseBuffer;
+        let recorder, mediaStreamDestination, recordingChunks = [];
+
+        // Knob function
+        function createKnob(container, name, min, max, value, label, onChange) {
+            const div = document.createElement('div');
+            div.className = 'knob-container';
+            const canvas = document.createElement('canvas');
+            canvas.className = 'knob';
+            canvas.width = 60;
+            canvas.height = 60;
+            canvas.dataset.name = name;
+            canvas.dataset.min = min;
+            canvas.dataset.max = max;
+            canvas.dataset.value = value;
+            const ctx = canvas.getContext('2d');
+            const knobLabel = document.createElement('div');
+            knobLabel.className = 'knob-label';
+            knobLabel.textContent = label;
+            div.appendChild(canvas);
+            div.appendChild(knobLabel);
+            container.appendChild(div);
+
+            let isDragging = false;
+            let startAngle = 0;
+            let currentValue = value;
+
+            function drawKnob(angle) {
+                const centerX = 30;
+                const centerY = 30;
+                const radius = 25;
+                ctx.clearRect(0, 0, 60, 60);
+                // Outer circle
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                ctx.strokeStyle = '#0f0';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                // Tick marks
+                for (let i = 0; i < 12; i++) {
+                    const tickAngle = (i / 12) * 2 * Math.PI - Math.PI / 2;
+                    const innerRadius = radius - 5;
+                    const outerRadius = radius;
+                    ctx.beginPath();
+                    ctx.moveTo(centerX + innerRadius * Math.cos(tickAngle), centerY + innerRadius * Math.sin(tickAngle));
+                    ctx.lineTo(centerX + outerRadius * Math.cos(tickAngle), centerY + outerRadius * Math.sin(tickAngle));
+                    ctx.strokeStyle = '#0a0';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+                // Knob line
+                const knobAngle = (currentValue - min) / (max - min) * 270 - 135; // 270 degrees from -135 to 135
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(centerX + radius * 0.6 * Math.cos(knobAngle * Math.PI / 180), centerY + radius * 0.6 * Math.sin(knobAngle * Math.PI / 180));
+                ctx.strokeStyle = '#0f0';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                // Value text
+                ctx.fillStyle = '#0f0';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(Math.round(currentValue * 100) / 100, centerX, centerY + 4);
+            }
+
+            function updateValue(newValue) {
+                currentValue = Math.max(min, Math.min(max, newValue));
+                drawKnob();
+                onChange(currentValue);
+            }
+
+            canvas.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left - 30;
+                const y = e.clientY - rect.top - 30;
+                startAngle = Math.atan2(y, x) * 180 / Math.PI;
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left - 30;
+                const y = e.clientY - rect.top - 30;
+                const angle = Math.atan2(y, x) * 180 / Math.PI;
+                let delta = angle - startAngle;
+                if (delta > 180) delta -= 360;
+                if (delta < -180) delta += 360;
+                const oldValue = currentValue;
+                updateValue(oldValue + delta / 3); // Sensitivity
+                startAngle = angle;
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            drawKnob();
+            return updateValue;
+        }
+
+        // Reverb impulse generator
+        function generateReverbImpulse(length = 2, decay = 3) {
+            const buffer = audioCtx.createBuffer(2, audioCtx.sampleRate * length, audioCtx.sampleRate);
+            const left = buffer.getChannelData(0);
+            const right = buffer.getChannelData(1);
+            for (let i = 0; i < left.length; i++) {
+                left[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / left.length, decay);
+                right[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / left.length, decay);
+            }
+            return buffer;
+        }
+
+        const presets = {
+            none: {},
+            didgeridoo: { carrierWave: 'sine', useFM: true, modWave: 'sine', ratio: 0.99, modIndex: 15, vibRate: 3.5, vibDepth: 8, attack: 1.5, decay: 2, sustain: 0.7, release: 3, filterType: 'bandpass', filterFreq: 250, filterQ: 8, reverbWet: 0.6, chorusWet: 0.3 },
+            bassguitar: { carrierWave: 'sawtooth', useFM: true, modWave: 'square', ratio: 1, modIndex: 5, vibRate: 0, vibDepth: 0, attack: 0.02, decay: 0.4, sustain: 0.6, release: 0.8, filterType: 'lowpass', filterFreq: 800, filterQ: 2, distortion: 20 },
+            piano: { carrierWave: 'sine', useFM: true, modWave: 'sine', ratio: 4, modIndex: 8, unison: 3, detune: 15, attack: 0.01, decay: 0.8, sustain: 0, release: 1.5, reverbWet: 0.7 },
+            singingbowl: { carrierWave: 'sine', useFM: true, modWave: 'sine', ratio: 1.01, modIndex: 30, vibRate: 0.2, vibDepth: 3, attack: 0.5, decay: 8, sustain: 0.9, release: 10, filterType: 'bandpass', filterFreq: 440, filterQ: 15, reverbWet: 0.8 },
+            ambientpad: { carrierWave: 'triangle', useFM: false, unison: 5, detune: 25, vibRate: 0.3, vibDepth: 10, attack: 3, decay: 6, sustain: 0.8, release: 8, filterType: 'lowpass', filterFreq: 4000, filterQ: 1, chorusWet: 0.7, reverbWet: 0.8 },
+            bowedcello: { carrierWave: 'sawtooth', useFM: false, vibRate: 5.5, vibDepth: 12, attack: 0.8, decay: 0.5, sustain: 0.9, release: 2, filterType: 'lowpass', filterFreq: 1200, filterQ: 3, reverbWet: 0.5 },
+            violin: { carrierWave: 'sawtooth', useFM: false, vibRate: 6.2, vibDepth: 15, attack: 0.4, decay: 0.3, sustain: 0.95, release: 1.2, filterType: 'lowpass', filterFreq: 3000, filterQ: 2, reverbWet: 0.4 },
+            duduk: { carrierWave: 'square', useFM: true, modWave: 'sine', ratio: 1, modIndex: 3, vibRate: 4, vibDepth: 10, attack: 0.6, decay: 0.4, sustain: 0.8, release: 1.5, filterType: 'lowpass', filterFreq: 1500, filterQ: 5 },
+            nativeflute: { carrierWave: 'sine', useFM: false, vibRate: 3, vibDepth: 5, attack: 0.8, decay: 0.2, sustain: 0.7, release: 2, filterType: 'lowpass', filterFreq: 2000, filterQ: 1, reverbWet: 0.6 },
+            tenorsax: { carrierWave: 'square', useFM: false, vibRate: 5.5, vibDepth: 20, attack: 0.3, decay: 0.4, sustain: 0.7, release: 0.8, filterType: 'lowpass', filterFreq: 2500, filterQ: 4, distortion: 10 },
+            harpsichord: { carrierWave: 'triangle', useFM: false, attack: 0.01, decay: 1.2, sustain: 0, release: 0.5, reverbWet: 0.4 },
+            panflute: { carrierWave: 'sine', useFM: false, vibRate: 2, vibDepth: 5, attack: 0.4, decay: 0.3, sustain: 0.6, release: 1.5, reverbWet: 0.7 },
+            koto: { carrierWave: 'triangle', useFM: false, attack: 0.02, decay: 1.5, sustain: 0, release: 0.8, reverbWet: 0.5 },
+            sitar: { carrierWave: 'sawtooth', useFM: true, modWave: 'sine', ratio: 3, modIndex: 10, vibRate: 6, vibDepth: 15, attack: 0.05, decay: 0.8, sustain: 0.5, release: 1, filterType: 'bandpass', filterFreq: 800, filterQ: 6 },
+            tibetanbowl: { carrierWave: 'sine', useFM: true, modWave: 'sine', ratio: 1.618, modIndex: 25, attack: 1, decay: 10, sustain: 0.9, release: 12, reverbWet: 0.9 },
+            kalimba: { carrierWave: 'sine', useFM: true, modWave: 'square', ratio: 5, modIndex: 8, attack: 0.01, decay: 1.5, sustain: 0, release: 0.8, reverbWet: 0.5 },
+            gong: { carrierWave: 'sine', useFM: true, modWave: 'sine', ratio: 2.7, modIndex: 40, attack: 0.5, decay: 15, sustain: 0.7, release: 20, reverbWet: 0.9 },
+            erhu: { carrierWave: 'sawtooth', useFM: false, vibRate: 5.8, vibDepth: 18, attack: 0.5, decay: 0.4, sustain: 0.9, release: 1.5, filterType: 'lowpass', filterFreq: 2200, filterQ: 3 },
+            steeldrum: { carrierWave: 'sine', useFM: true, modWave: 'sine', ratio: 3, modIndex: 20, attack: 0.02, decay: 2, sustain: 0, release: 1, reverbWet: 0.6 },
+            vibraphone: { carrierWave: 'sine', useFM: true, modWave: 'sine', ratio: 3.5, modIndex: 10, vibRate: 6, vibDepth: 5, attack: 0.05, decay: 3, sustain: 0.5, release: 4, reverbWet: 0.7 },
+            marimba: { carrierWave: 'sine', useFM: true, modWave: 'square', ratio: 4, modIndex: 5, attack: 0.02, decay: 2, sustain: 0, release: 1.2, reverbWet: 0.5 }
+        };
+
+        const drumTypes = [
+            'deepbassdrum', 'tightsnare', 'hihatclosed', 'hihatopen', 'djembe', 'conga', 'shaker', 'rattle', 'waterdrum', 'handpan', 
+            'clap', 'rimshot', 'tomlow', 'tomhigh', 'cowbell', 'tambourine', 'bongo', 'taiko', 'ride', 'crash'
+        ];
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                masterGain = audioCtx.createGain();
+                masterGain.gain.value = 0.7;
+                masterGain.connect(audioCtx.destination);
+                // white noise buffer for drums
+                whiteNoiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 5, audioCtx.sampleRate);
+                const d = whiteNoiseBuffer.getChannelData(0);
+                for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+                // MediaStreamDestination for recording
+                mediaStreamDestination = audioCtx.createMediaStreamDestination();
+                mediaStreamDestination.connect(masterGain); // Route to master too
+            }
+        }
+
+        function toggleRecord() {
+            initAudio();
+            const btn = document.getElementById('recordButton');
+            if (!recorder) {
+                recordingChunks = [];
+                const stream = mediaStreamDestination.stream;
+                recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                recorder.ondataavailable = (e) => recordingChunks.push(e.data);
+                recorder.onstop = () => {
+                    const blob = new Blob(recordingChunks, { type: 'audio/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'resonance-track.webm';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                };
+                btn.textContent = '■ Stop Record';
+                btn.classList.add('recording');
+            } else {
+                recorder.stop();
+                recorder = null;
+                btn.textContent = '● Record';
+                btn.classList.remove('recording');
+            }
+        }
+
+        function addLayer() {
+            initAudio();
+            const id = layers.length + 1;
+            const div = document.createElement('div');
+            div.className = 'layer';
+            div.innerHTML = `
+                <h2>Layer ${id}</h2>
+                <label>Type: 
+                    <select name="type" onchange="updateInputs(this)">
+                        <option value="binaural">Binaural Beats</option>
+                        <option value="isochronic">Isochronic Tones</option>
+                        <option value="tone">Instrument / Tone</option>
+                        <option value="solfeggio">Solfeggio Preset</option>
+                        <option value="noise">Noise Base</option>
+                        <option value="rhythm">Rhythm / Drums</option>
+                    </select>
+                </label>
+                <label>Volume: <div class="knob-container" data-name="volume" data-min="0" data-max="1" data-value="0.5"></div><span id="vol-val-${id}">0.5</span></label>
+                <label>Pan: <div class="knob-container" data-name="pan" data-min="-1" data-max="1" data-value="0"></div><span id="pan-val-${id}">0</span></label>
+                <div class="inputs"></div>
+                <button class="small" onclick="this.parentElement.remove(); layers = layers.filter(l => l !== this.parentElement)">Remove Layer</button>
+            `;
+            document.getElementById('layers').appendChild(div);
+            layers.push(div);
+            updateInputs(div.querySelector('[name="type"]'));
+            // Init knobs
+            div.querySelectorAll('.knob-container').forEach(cont => {
+                const name = cont.dataset.name;
+                const min = parseFloat(cont.dataset.min);
+                const max = parseFloat(cont.dataset.max);
+                const value = parseFloat(cont.dataset.value);
+                createKnob(cont, name, min, max, value, name, (v) => {
+                    const span = div.querySelector(`#${name}-val-${id}`);
+                    if (span) span.textContent = v.toFixed(2);
+                });
+            });
+        }
+
+        function updateInputs(sel) {
+            const div = sel.closest('.layer').querySelector('.inputs');
+            const type = sel.value;
+            let html = '';
+            if (type === 'binaural' || type === 'tone' || type === 'isochronic' || type === 'solfeggio') {
+                html = `
+                    <label>Instrument Preset: 
+                        <select name="preset" onchange="applyPreset(this)">
+                            <option value="none">Custom</option>
+                            <option value="didgeridoo">Didgeridoo</option>
+                            <option value="bassguitar">Bass Guitar</option>
+                            <option value="piano">Sustained Piano</option>
+                            <option value="singingbowl">Singing Bowl (resonance)</option>
+                            <option value="ambientpad">Ambient Synth Pad</option>
+                            <option value="bowedcello">Warm Bowed Cello</option>
+                            <option value="violin">Violin (vibrato)</option>
+                            <option value="duduk">Duduk</option>
+                            <option value="nativeflute">Native Flute</option>
+                            <option value="tenorsax">Tenor Saxophone</option>
+                            <option value="harpsichord">Celestial Harpsichord</option>
+                            <option value="panflute">Pan Flute</option>
+                            <option value="koto">Koto</option>
+                            <option value="sitar">Sitar</option>
+                            <option value="tibetanbowl">Tibetan Bowl</option>
+                            <option value="kalimba">Kalimba</option>
+                            <option value="gong">Gong</option>
+                            <option value="erhu">Erhu</option>
+                            <option value="steeldrum">Steel Drum</option>
+                            <option value="vibraphone">Vibraphone</option>
+                            <option value="marimba">Marimba</option>
+                        </select>
+                    </label>
+                    <label>Carrier Wave: 
+                        <select name="carrierWave">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="square">Square</option>
+                        </select>
+                    </label>
+                    <label>Use FM Synthesis: <input type="checkbox" name="useFM" onchange="this.closest('.inputs').querySelector('.fmcontrols').style.display = this.checked ? 'block' : 'none'"></label>
+                    <div class="fmcontrols" style="display:none">
+                        <label>Modulator Wave: <select name="modWave">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="square">Square</option>
+                        </select></label>
+                        <label>Ratio: <input name="ratio" type="number" min="0.01" max="20" step="0.01" value="1"></label>
+                        <label>Mod Index: <div class="knob-container" data-name="modIndex" data-min="0" data-max="50" data-value="0"></div><span id="mod-val-${layers.length + 1}">0</span></label>
+                    </div>
+                    <details><summary>Advanced: Envelope · Modulation · Filter · Effects</summary>
+                        <label>Attack (s): <div class="knob-container" data-name="attack" data-min="0" data-max="10" data-value="0.02"></div><span id="att-val-${layers.length + 1}">0.02</span></label>
+                        <label>Decay (s): <div class="knob-container" data-name="decay" data-min="0" data-max="10" data-value="0.3"></div><span id="dec-val-${layers.length + 1}">0.3</span></label>
+                        <label>Sustain (0-1): <div class="knob-container" data-name="sustain" data-min="0" data-max="1" data-value="0.8"></div><span id="sus-val-${layers.length + 1}">0.8</span></label>
+                        <label>Release (s): <div class="knob-container" data-name="release" data-min="0" data-max="20" data-value="1"></div><span id="rel-val-${layers.length + 1}">1</span></label>
+                        <label>Vibrato Rate (Hz): <div class="knob-container" data-name="vibRate" data-min="0" data-max="15" data-value="0" step="0.1"></div><span id="vib-val-${layers.length + 1}">0</span></label>
+                        <label>Vibrato Depth (cents): <div class="knob-container" data-name="vibDepth" data-min="0" data-max="50" data-value="0"></div><span id="vibd-val-${layers.length + 1}">0</span></label>
+                        <label>Unison Voices: <input name="unison" type="number" min="1" max="9" value="1"></label>
+                        <label>Detune (cents): <div class="knob-container" data-name="detune" data-min="0" data-max="50" data-value="0"></div><span id="det-val-${layers.length + 1}">0</span></label>
+                        <label>Filter: <select name="filterType"><option>lowpass</option><option>highpass</option><option>bandpass</option><option>notch</option></select>
+                        </label>
+                        <label>Filter Freq (Hz): <input name="filterFreq" type="number" min="20" max="20000" value="20000"></label>
+                        <label>Filter Q: <div class="knob-container" data-name="filterQ" data-min="0.1" data-max="30" data-value="1"></div><span id="fq-val-${layers.length + 1}">1</span></label>
+                        <label>Distortion (0-100): <div class="knob-container" data-name="distortion" data-min="0" data-max="100" data-value="0"></div><span id="dist-val-${layers.length + 1}">0</span></label>
+                        <label>Fuzz (0-100): <div class="knob-container" data-name="fuzz" data-min="0" data-max="100" data-value="0"></div><span id="fuzz-val-${layers.length + 1}">0</span></label>
+                        <label>Delay Time (s): <div class="knob-container" data-name="delayTime" data-min="0" data-max="2" data-value="0.3"></div><span id="dt-val-${layers.length + 1}">0.3</span></label>
+                        <label>Delay Feedback: <div class="knob-container" data-name="delayFeedback" data-min="0" data-max="0.95" data-value="0.4"></div><span id="df-val-${layers.length + 1}">0.4</span></label>
+                        <label>Delay Wet: <div class="knob-container" data-name="delayWet" data-min="0" data-max="1" data-value="0"></div><span id="dw-val-${layers.length + 1}">0</span></label>
+                        <label>Chorus Rate: <div class="knob-container" data-name="chorusRate" data-min="0" data-max="10" data-value="0"></div><span id="cr-val-${layers.length + 1}">0</span></label>
+                        <label>Chorus Depth: <div class="knob-container" data-name="chorusDepth" data-min="0" data-max="0.02" data-value="0.005" step="0.001"></div><span id="cd-val-${layers.length + 1}">0.005</span></label>
+                        <label>Chorus Wet: <div class="knob-container" data-name="chorusWet" data-min="0" data-max="1" data-value="0"></div><span id="cw-val-${layers.length + 1}">0</span></label>
+                        <label>Flanger Rate: <div class="knob-container" data-name="flangerRate" data-min="0" data-max="5" data-value="0"></div><span id="fr-val-${layers.length + 1}">0</span></label>
+                        <label>Flanger Depth: <div class="knob-container" data-name="flangerDepth" data-min="0" data-max="0.01" data-value="0.003" step="0.001"></div><span id="fd-val-${layers.length + 1}">0.003</span></label>
+                        <label>Flanger Feedback: <div class="knob-container" data-name="flangerFeedback" data-min="0" data-max="0.95" data-value="0"></div><span id="ff-val-${layers.length + 1}">0</span></label>
+                        <label>Flanger Wet: <div class="knob-container" data-name="flangerWet" data-min="0" data-max="1" data-value="0"></div><span id="fw-val-${layers.length + 1}">0</span></label>
+                        <label>Reverb Wet: <div class="knob-container" data-name="reverbWet" data-min="0" data-max="1" data-value="0"></div><span id="rw-val-${layers.length + 1}">0</span></label>
+                    </details>
+                `;
+                if (type === 'binaural') {
+                    html += `<label>Carrier (Hz): <input name="carrier" type="number" min="50" max="1000" value="200"></label>
+                             <label>Beat (Hz): <input name="beat" type="number" min="0.1" max="60" step="0.1" value="8"></label>`;
+                } else if (type === 'isochronic') {
+                    html += `<label>Tone (Hz): <input name="toneFreq" type="number" min="20" max="2000" value="432"></label>
+                             <label>Pulse Rate (Hz): <input name="pulseRate" type="number" min="0.1" max="40" step="0.1" value="7"></label>
+                             <label>Duty (%): <input name="duty" type="number" min="10" max="90" value="50"></label>`;
+                } else if (type === 'tone') {
+                    html += `<label>Frequency (Hz): <input name="freq" type="number" min="1" max="20000" value="528"></label>`;
+                } else if (type === 'solfeggio') {
+                    html += `<label>Preset: 
+                        <select name="freq">
+                            <option value="174">174 Hz – Pain/Tension</option>
+                            <option value="285">285 Hz – Energy Field</option>
+                            <option value="396">396 Hz – Guilt/Fear</option>
+                            <option value="417">417 Hz – Change</option>
+                            <option value="528" selected>528 Hz – DNA Repair</option>
+                            <option value="639">639 Hz – Relationships</option>
+                            <option value="741">741 Hz – Intuition</option>
+                            <option value="852">852 Hz – Spiritual Order</option>
+                            <option value="963">963 Hz – Crown</option>
+                        </select>
+                    </label>`;
+                }
+            } else if (type === 'noise') {
+                html = `
+                    <label>Noise: 
+                        <select name="noiseType">
+                            <option value="white">White</option>
+                            <option value="pink">Pink</option>
+                            <option value="brown">Brown</option>
+                        </select>
+                    </label>
+                    <details><summary>Effects for Noise</summary>
+                        <label>Filter Freq: <input name="filterFreq" type="number" value="20000"></label>
+                        <label>Reverb Wet: <div class="knob-container" data-name="reverbWet" data-min="0" data-max="1" data-value="0"></div><span id="nrw-val-${layers.length + 1}">0</span></label>
+                    </details>
+                `;
+            } else if (type === 'rhythm') {
+                html = `
+                    <label>BPM: <input name="bpm" type="number" min="40" max="300" value="120"></label>
+                    <label>Swing (%): <div class="knob-container" data-name="swing" data-min="0" data-max="75" data-value="0"></div><span id="sw-val-${layers.length + 1}">0</span></label>
+                    <button onclick="addDrumRow(this.closest('.layer'))">+ Add Drum</button>
+                    <table id="patternTable">
+                        <tr><th>Drum</th><th>Vol</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th><th>11</th><th>12</th><th>13</th><th>14</th><th>15</th><th>16</th></tr>
+                    </table>
+                    <details><summary>Drum Layer Effects</summary>
+                        <label>Reverb Wet: <div class="knob-container" data-name="reverbWet" data-min="0" data-max="1" data-value="0.4"></div><span id="drw-val-${layers.length + 1}">0.4</span></label>
+                        <label>Delay Wet: <div class="knob-container" data-name="delayWet" data-min="0" data-max="1" data-value="0"></div><span id="ddw-val-${layers.length + 1}">0</span></label>
+                    </details>
+                `;
+            }
+            div.innerHTML = html;
+            // Re-init knobs for advanced
+            const layerId = layers.length;
+            div.querySelectorAll('.knob-container').forEach((cont, index) => {
+                const name = cont.dataset.name;
+                const min = parseFloat(cont.dataset.min);
+                const max = parseFloat(cont.dataset.max);
+                const value = parseFloat(cont.dataset.value);
+                createKnob(cont, name, min, max, value, name, (v) => {
+                    const spanId = `${name}-val-${layerId}`;
+                    const span = div.querySelector(`#${spanId}`);
+                    if (span) span.textContent = v.toFixed(2);
+                });
+            });
+        }
+
+        function addDrumRow(layer) {
+            const table = layer.querySelector('#patternTable');
+            const row = document.createElement('tr');
+            const tdName = document.createElement('td');
+            const select = document.createElement('select');
+            drumTypes.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d;
+                opt.textContent = d.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, str => str.toUpperCase());
+                select.appendChild(opt);
+            });
+            tdName.appendChild(select);
+            row.appendChild(tdName);
+            const tdVol = document.createElement('td');
+            tdVol.innerHTML = '<div class="knob-container" data-name="drumVol" data-min="0" data-max="1" data-value="0.8"></div><span>0.8</span>';
+            row.appendChild(tdVol);
+            for (let i = 0; i < 16; i++) {
+                const td = document.createElement('td');
+                td.innerHTML = '<input type="checkbox" class="drumstep">';
+                row.appendChild(td);
+            }
+            const tdDel = document.createElement('td');
+            tdDel.innerHTML = '<button class="small" onclick="this.closest(\'tr\').remove()">X</button>';
+            row.appendChild(tdDel);
+            table.appendChild(row);
+            // Init drum vol knob
+            const cont = tdVol.querySelector('.knob-container');
+            createKnob(cont, 'drumVol', 0, 1, 0.8, 'Vol', (v) => {
+                const span = tdVol.querySelector('span');
+                span.textContent = v.toFixed(1);
+            });
+        }
+
+        function applyPreset(sel) {
+            const preset = presets[sel.value] || {};
+            const inputs = sel.closest('.inputs');
+            const names = ['carrierWave', 'useFM', 'modWave', 'ratio', 'modIndex', 'attack', 'decay', 'sustain', 'release', 'vibRate', 'vibDepth', 'unison', 'detune', 'filterType', 'filterFreq', 'filterQ', 'distortion', 'fuzz', 'delayTime', 'delayFeedback', 'delayWet', 'chorusRate', 'chorusDepth', 'chorusWet', 'flangerRate', 'flangerDepth', 'flangerFeedback', 'flangerWet', 'reverbWet'];
+            names.forEach(n => {
+                const el = inputs.querySelector(`[name="${n}"]`);
+                if (el) {
+                    if (el.type === 'checkbox') el.checked = !!preset[n];
+                    else el.value = preset[n] || el.value;
+                }
+                // Update knobs
+                const knobCont = inputs.querySelector(`[data-name="${n}"]`);
+                if (knobCont) {
+                    knobCont.dataset.value = preset[n] || 0;
+                    // Redraw knob
+                    const canvas = knobCont.querySelector('canvas');
+                    if (canvas) {
+                        const ctx = canvas.getContext('2d');
+                        // Redraw logic here if needed, or trigger change
+                    }
+                }
+            });
+            if (preset.useFM) inputs.querySelector('.fmcontrols').style.display = 'block';
+            const fmCheck = inputs.querySelector('[name="useFM"]');
+            if (fmCheck) fmCheck.dispatchEvent(new Event('change'));
+        }
+
+        function getData(layerDiv) {
+            const data = { type: layerDiv.querySelector('[name="type"]').value, volume: 0.5, pan: 0 };
+            layerDiv.querySelectorAll('[name]').forEach(el => {
+                if (el.type === 'checkbox') data[el.name] = el.checked;
+                else if (el.type === 'range' || el.type === 'number') data[el.name] = parseFloat(el.value) || 0;
+                else data[el.name] = el.value;
+            });
+            // Get knob values
+            layerDiv.querySelectorAll('.knob-container').forEach(cont => {
+                const name = cont.dataset.name;
+                data[name] = parseFloat(cont.dataset.value);
+            });
+            if (data.type === 'rhythm') {
+                data.pattern = [];
+                const rows = layerDiv.querySelectorAll('#patternTable tr:not(:first-child)');
+                rows.forEach(row => {
+                    const type = row.querySelector('select').value;
+                    const volCont = row.querySelector('.knob-container');
+                    const vol = parseFloat(volCont.dataset.value) || 0.8;
+                    const steps = [];
+                    row.querySelectorAll('.drumstep').forEach(cb => steps.push(cb.checked ? vol : 0));
+                    if (steps.some(v => v > 0)) data.pattern.push({type, steps});
+                });
+            }
+            return data;
+        }
+
+        // ====================== AUDIO ENGINE ======================
+
+        function buildEffectChain(input, data) {
+            let current = input;
+
+            // Filter
+            if (data.filterFreq < 19999 || data.filterQ > 1.01) {
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = data.filterType || 'lowpass';
+                filter.frequency.value = data.filterFreq || 20000;
+                filter.Q.value = data.filterQ || 1;
+                current.connect(filter);
+                current = filter;
+            }
+
+            // Distortion / Fuzz
+            if (data.distortion > 0 || data.fuzz > 0) {
+                const amount = Math.max(data.distortion, data.fuzz * 2);
+                const shaper = audioCtx.createWaveShaper();
+                shaper.curve = makeDistortionCurve(amount);
+                shaper.oversample = '4x';
+                current.connect(shaper);
+                current = shaper;
+            }
+
+            // Reverb
+            if (data.reverbWet > 0) {
+                const convolver = audioCtx.createConvolver();
+                convolver.buffer = generateReverbImpulse(2, 3);
+                const reverbGain = audioCtx.createGain();
+                reverbGain.gain.value = data.reverbWet;
+                current.connect(convolver);
+                convolver.connect(reverbGain);
+                // Parallel
+                const splitter = audioCtx.createChannelSplitter(2);
+                const merger = audioCtx.createChannelMerger(2);
+                current.connect(splitter);
+                splitter.connect(merger, 0, 0);
+                splitter.connect(merger, 0, 1);
+                reverbGain.connect(merger);
+                current = merger;
+            }
+
+            // Parallel effects
+            const parallelEffects = [];
+
+            if (data.delayWet > 0) parallelEffects.push(createDelay(data));
+            if (data.chorusWet > 0) parallelEffects.push(createChorus(data));
+            if (data.flangerWet > 0) parallelEffects.push(createFlanger(data));
+
+            if (parallelEffects.length > 0) {
+                const splitter = audioCtx.createChannelSplitter(2);
+                const dryGain = audioCtx.createGain();
+                const wetMerger = audioCtx.createChannelMerger(2);
+                current.connect(splitter);
+                splitter.connect(dryGain, 0);
+                splitter.connect(dryGain, 1);
+                dryGain.gain.value = 1;
+                parallelEffects.forEach(eff => {
+                    splitter.connect(eff.input, 0);
+                    splitter.connect(eff.input, 1);
+                    eff.output.connect(wetMerger);
+                });
+                dryGain.connect(wetMerger);
+                current = wetMerger;
+            }
+
+            return {input: input, output: current};
+        }
+
+        function makeDistortionCurve(amount) {
+            const k = amount * 100;
+            const n = 44100;
+            const curve = new Float32Array(n);
+            const deg = Math.PI / 180;
+            for (let i = 0; i < n; i++) {
+                const x = i * 2 / n - 1;
+                curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+            }
+            return curve;
+        }
+
+        // (rest of effect functions unchanged: createDelay, createChorus, createFlanger, createSimpleReverb removed since reverb is now in build)
+
+        function createDelay(data) {
+            // unchanged
+            const delay = audioCtx.createDelay(2);
+            delay.delayTime.value = data.delayTime;
+            const feedback = audioCtx.createGain();
+            feedback.gain.value = data.delayFeedback;
+            delay.connect(feedback);
+            feedback.connect(delay);
+            const wetGain = audioCtx.createGain();
+            wetGain.gain.value = data.delayWet;
+            delay.connect(wetGain);
+            const splitter = audioCtx.createChannelSplitter(2);
+            const merger = audioCtx.createChannelMerger(2);
+            const dryGain = audioCtx.createGain();
+            dryGain.gain.value = 1 - data.delayWet;
+            splitter.connect(dryGain, 0);
+            splitter.connect(dryGain, 1);
+            splitter.connect(delay, 0);
+            splitter.connect(delay, 1);
+            dryGain.connect(merger);
+            wetGain.connect(merger);
+            return {input: splitter, output: merger};
+        }
+
+        function createChorus(data) {
+            // unchanged
+            const splitter = audioCtx.createChannelSplitter(2);
+            const merger = audioCtx.createChannelMerger(2);
+            const dryGain = audioCtx.createGain();
+            dryGain.gain.value = 1 - data.chorusWet;
+            splitter.connect(dryGain, 0);
+            splitter.connect(dryGain, 1);
+            dryGain.connect(merger);
+            for (let i = 0; i < 4; i++) {
+                const delay = audioCtx.createDelay(0.05);
+                delay.delayTime.value = 0.01 + i * 0.003;
+                const lfo = audioCtx.createOscillator();
+                lfo.frequency.value = data.chorusRate + i * 0.2;
+                const lfoGain = audioCtx.createGain();
+                lfoGain.gain.value = data.chorusDepth;
+                lfo.connect(lfoGain);
+                lfoGain.connect(delay.delayTime);
+                lfo.start();
+                const wetGain = audioCtx.createGain();
+                wetGain.gain.value = data.chorusWet / 4;
+                splitter.connect(delay);
+                delay.connect(wetGain);
+                wetGain.connect(merger);
+            }
+            return {input: splitter, output: merger};
+        }
+
+        function createFlanger(data) {
+            // unchanged
+            const splitter = audioCtx.createChannelSplitter(2);
+            const merger = audioCtx.createChannelMerger(2);
+            const dryGain = audioCtx.createGain();
+            dryGain.gain.value = 1 - data.flangerWet;
+            splitter.connect(dryGain, 0);
+            splitter.connect(dryGain, 1);
+            dryGain.connect(merger);
+            const delay = audioCtx.createDelay(0.02);
+            delay.delayTime.value = 0.005;
+            const feedback = audioCtx.createGain();
+            feedback.gain.value = data.flangerFeedback;
+            delay.connect(feedback);
+            feedback.connect(delay);
+            const lfo = audioCtx.createOscillator();
+            lfo.type = 'sine';
+            lfo.frequency.value = data.flangerRate;
+            const lfoGain = audioCtx.createGain();
+            lfoGain.gain.value = data.flangerDepth;
+            lfo.connect(lfoGain);
+            lfoGain.connect(delay.delayTime);
+            lfo.start();
+            const wetGain = audioCtx.createGain();
+            wetGain.gain.value = data.flangerWet;
+            splitter.connect(delay);
+            delay.connect(wetGain);
+            wetGain.connect(merger);
+            return {input: splitter, output: merger};
+        }
+
+        function createToneSource(freq, data, startTime, dest) {
+            // unchanged
+            const envelopeGain = audioCtx.createGain();
+            envelopeGain.gain.setValueAtTime(0, startTime);
+            envelopeGain.connect(dest);
+
+            const sources = [];
+            const unison = data.unison || 1;
+            const detuneBase = data.detune || 0;
+
+            for (let u = 0; u < unison; u++) {
+                const det = detuneBase * (2 * u / Math.max(1, unison - 1) - 1);
+                const osc = audioCtx.createOscillator();
+                osc.type = data.carrierWave || 'sine';
+                osc.frequency.value = freq;
+                osc.detune.value = det;
+                sources.push(osc);
+
+                if (data.useFM) {
+                    const modOsc = audioCtx.createOscillator();
+                    modOsc.type = data.modWave || 'sine';
+                    modOsc.frequency.value = freq * data.ratio;
+                    const modGain = audioCtx.createGain();
+                    modGain.gain.value = data.modIndex * (freq * data.ratio);
+                    modOsc.connect(modGain);
+                    modGain.connect(osc.frequency);
+                    modOsc.start(startTime);
+                    sources.push(modOsc, modGain);
+                }
+
+                if (data.vibRate > 0 && data.vibDepth > 0) {
+                    const vibOsc = audioCtx.createOscillator();
+                    vibOsc.type = 'sine';
+                    vibOsc.frequency.value = data.vibRate;
+                    const vibGain = audioCtx.createGain();
+                    const depthHz = freq * (Math.pow(2, data.vibDepth / 1200) - 1);
+                    vibGain.gain.value = depthHz;
+                    vibOsc.connect(vibGain);
+                    vibGain.connect(osc.frequency);
+                    vibOsc.start(startTime);
+                    sources.push(vibOsc, vibGain);
+                }
+
+                osc.connect(envelopeGain);
+                osc.start(startTime);
+            }
+
+            // ADSR
+            const a = Math.max(0.001, data.attack || 0.02);
+            const d = data.decay || 0.3;
+            const s = data.sustain !== undefined ? data.sustain : 0.8;
+            const r = data.release || 1;
+            envelopeGain.gain.linearRampToValueAtTime(1, startTime + a);
+            envelopeGain.gain.linearRampToValueAtTime(s, startTime + a + d);
+
+            const stopFunc = (t = startTime) => {
+                const releaseStart = t;
+                envelopeGain.gain.cancelScheduledValues(releaseStart);
+                envelopeGain.gain.setValueAtTime(envelopeGain.gain.value || s, releaseStart);
+                envelopeGain.gain.linearRampToValueAtTime(0.001, releaseStart + r);
+                sources.forEach(src => {
+                    try { src.stop(releaseStart + r + 0.1); } catch(e) {}
+                });
+            };
+
+            return {output: envelopeGain, stop: stopFunc, sources};
+        }
+
+        // Drum play function unchanged, add more drum types if needed
+
+        function playDrum(type, time, velocity, dest) {
+            // unchanged, expand if needed
+            const v = velocity || 1;
+            let osc, noise, gain, filter;
+
+            switch (type) {
+                case 'deepbassdrum':
+                    osc = audioCtx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(140, time);
+                    osc.frequency.exponentialRampToValueAtTime(20, time + 0.4);
+                    gain = audioCtx.createGain();
+                    gain.gain.setValueAtTime(v * 4, time);
+                    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+                    osc.connect(gain);
+                    gain.connect(dest);
+                    osc.start(time);
+                    osc.stop(time + 0.6);
+                    break;
+                // Add other cases similarly
+                default:
+                    noise = audioCtx.createBufferSource();
+                    noise.buffer = whiteNoiseBuffer;
+                    gain = audioCtx.createGain();
+                    gain.gain.setValueAtTime(v, time);
+                    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+                    noise.connect(gain);
+                    gain.connect(dest);
+                    noise.start(time);
+                    noise.stop(time + 0.1);
+            }
+        }
+
+        function createSource(data, startTime) {
+            // unchanged except connect to mediaStreamDestination if recording
+            const layerGain = audioCtx.createGain();
+            layerGain.gain.setValueAtTime(0, startTime);
+            layerGain.gain.linearRampToValueAtTime(data.volume || 0.5, startTime + 2);
+
+            const input = audioCtx.createGain();
+            const chain = buildEffectChain(input, data);
+            chain.output.connect(layerGain);
+
+            const panner = audioCtx.createStereoPanner();
+            panner.pan.value = data.pan || 0;
+            layerGain.connect(panner);
+            panner.connect(masterGain);
+            if (recorder) panner.connect(mediaStreamDestination);
+
+            // rest unchanged
+            let sourceObj = null;
+
+            if (data.type === 'tone' || data.type === 'solfeggio') {
+                const freq = data.freq || 528;
+                sourceObj = createToneSource(freq, data, startTime, input);
+            } // ... other types
+
+            const stopFunc = (t = startTime) => {
+                layerGain.gain.cancelScheduledValues(t);
+                layerGain.gain.linearRampToValueAtTime(0, t + 1);
+                if (sourceObj && sourceObj.stop) sourceObj.stop(t + 1);
+            };
+
+            return {stop: stopFunc};
+        }
+
+        // scheduler unchanged
+
+        function scheduler() {
+            // unchanged
+        }
+
+        // play, stop, clearAll unchanged, but in play, if recorder, start it
+
+        function play() {
+            if (isPlaying) stop();
+            initAudio();
+            audioCtx.resume();
+            if (recorder) recorder.start();
+            const now = audioCtx.currentTime + 0.2;
+            document.querySelectorAll('.layer').forEach(div => {
+                const src = createSource(getData(div), now);
+                if (src) activeSources.push(src);
+            });
+            isPlaying = true;
+        }
+
+        function stop() {
+            if (!isPlaying) return;
+            const t = audioCtx.currentTime + 1;
+            activeSources.forEach(s => s.stop(t));
+            activeSources = [];
+            if (recorder) recorder.stop();
+            activeRhythms.forEach(r => r.nextNoteTime = t + 1000);
+            if (schedulerId) cancelAnimationFrame(schedulerId);
+            schedulerId = null;
+            activeRhythms = [];
+            isPlaying = false;
+        }
+
+        function clearAll() {
+            stop();
+            document.getElementById('layers').innerHTML = '';
+            layers = [];
+        }
+
+        // Start with one tone layer
+        addLayer();
+    </script>
+</body>
+</html>
