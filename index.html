@@ -111,21 +111,6 @@
       height: var(--knob-size);
       margin: 0 auto;
     }
-    .knob input {
-      appearance: none;
-      width: 100%;
-      height: 100%;
-      background: transparent;
-      outline: none;
-      cursor: grab;
-    }
-    .knob input::-webkit-slider-thumb {
-      appearance: none;
-      width: var(--knob-size);
-      height: var(--knob-size);
-      background: transparent;
-      cursor: grab;
-    }
     .knob canvas {
       position: absolute;
       top: 0;
@@ -231,6 +216,27 @@
       color: var(--text);
       font-size: 14px;
     }
+    .pattern-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .pattern-btn {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 8px 4px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .pattern-btn.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
     footer {
       position: fixed;
       bottom: 0;
@@ -273,7 +279,7 @@
 
   <header>
     <div class="logo">Quantum Harmonics</div>
-    <div id="recordBtn" class="record-btn">●</div>
+    <div id="recordBtn" class="record-btn">[Record]</div>
   </header>
 
   <div class="container">
@@ -298,6 +304,13 @@
           <span class="slider"></span>
         </label>
         <span style="font-size:13px; margin-left:8px;">Binaural Beats</span>
+      </div>
+      <div style="margin-top:12px;">
+        <label class="switch">
+          <input type="checkbox" id="isochronicToggle" checked />
+          <span class="slider"></span>
+        </label>
+        <span style="font-size:13px; margin-left:8px;">Isochronic Pulse</span>
       </div>
     </div>
 
@@ -362,9 +375,11 @@
       </div>
     </div>
 
-    <!-- DRUM LAYERS -->
+    <!-- DRUM LAYERS + PATTERNS -->
     <div class="panel">
       <div class="panel-title">Drum Layers</div>
+
+      <!-- Kick -->
       <div style="display:flex; align-items:center; gap:12px;">
         <label class="switch">
           <input type="checkbox" id="kickToggle" />
@@ -385,6 +400,7 @@
         </div>
       </div>
 
+      <!-- Snare -->
       <div style="display:flex; align-items:center; gap:12px; margin-top:12px;">
         <label class="switch">
           <input type="checkbox" id="snareToggle" />
@@ -402,6 +418,208 @@
           <div class="knob" data-param="snareRate"><canvas width="56" height="56"></canvas></div>
           <div class="knob-label">Rate</div>
           <div id="snareRateVal" class="knob-value">Off</div>
+        </div>
+      </div>
+
+      <!-- Tom 1 -->
+      <div style="display:flex; align-items:center; gap:12px; margin-top:12px;">
+        <label class="switch">
+          <input type="checkbox" id="tom1Toggle" />
+          <span class="slider"></span>
+        </label>
+        <span style="font-size:13px;">Tom 1 (120 Hz)</span>
+      </div>
+      <div class="knob-grid">
+        <div>
+          <div class="knob" data-param="tom1Vol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Vol</div>
+          <div id="tom1VolVal" class="knob-value">0%</div>
+        </div>
+      </div>
+
+      <!-- Tom 2 -->
+      <div style="display:flex; align-items:center; gap:12px; margin-top:12px;">
+        <label class="switch">
+          <input type="checkbox" id="tom2Toggle" />
+          <span class="slider"></span>
+        </label>
+        <span style="font-size:13px;">Tom 2 (90 Hz)</span>
+      </div>
+      <div class="knob-grid">
+        <div>
+          <div class="knob" data-param="tom2Vol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Vol</div>
+          <div id="tom2VolVal" class="knob-value">0%</div>
+        </div>
+      </div>
+
+      <!-- Rimshot -->
+      <div style="display:flex; align-items:center; gap:12px; margin-top:12px;">
+        <label class="switch">
+          <input type="checkbox" id="rimToggle" />
+          <span class="slider"></span>
+        </label>
+        <span style="font-size:13px;">Rimshot (300 Hz)</span>
+      </div>
+      <div class="knob-grid">
+        <div>
+          <div class="knob" data-param="rimVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Vol</div>
+          <div id="rimVolVal" class="knob-value">0%</div>
+        </div>
+      </div>
+
+      <!-- Shaker -->
+      <div style="display:flex; align-items:center; gap:12px; margin-top:12px;">
+        <label class="switch">
+          <input type="checkbox" id="shakerToggle" />
+          <span class="slider"></span>
+        </label>
+        <span style="font-size:13px;">Shaker</span>
+      </div>
+      <div class="knob-grid">
+        <div>
+          <div class="knob" data-param="shakerVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Vol</div>
+          <div id="shakerVolVal" class="knob-value">0%</div>
+        </div>
+      </div>
+
+      <!-- Drum Patterns -->
+      <div style="margin-top:16px;">
+        <div style="font-size:13px; color:var(--text-dim); margin-bottom:8px;">Pattern</div>
+        <div class="pattern-grid">
+          <div class="pattern-btn active" data-pattern="basic">Basic</div>
+          <div class="pattern-btn" data-pattern="tribal">Tribal</div>
+          <div class="pattern-btn" data-pattern="dnb">D&B</div>
+          <div class="pattern-btn" data-pattern="house">House</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INSTRUMENTS (25) -->
+    <div class="panel">
+      <div class="panel-title">Instruments (25)</div>
+      <div class="knob-grid">
+        <div>
+          <div class="knob" data-param="harpVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Harp</div>
+          <div id="harpVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="sistrumVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Sistrum</div>
+          <div id="sistrumVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="fluteVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Flute</div>
+          <div id="fluteVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="violinVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Violin</div>
+          <div id="violinVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="celloVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Cello</div>
+          <div id="celloVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="pianoVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Piano</div>
+          <div id="pianoVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="bellVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Bell</div>
+          <div id="bellVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="gongVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Gong</div>
+          <div id="gongVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="drumVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Drum</div>
+          <div id="drumVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="rainstickVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Rainstick</div>
+          <div id="rainstickVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="windchimeVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Windchime</div>
+          <div id="windchimeVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="tibetanVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Tibetan</div>
+          <div id="tibetanVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="crystalVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Crystal</div>
+          <div id="crystalVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="didgeridooVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Didgeridoo</div>
+          <div id="didgeridooVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="dudukVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Duduk</div>
+          <div id="dudukVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="kotoVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Koto</div>
+          <div id="kotoVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="shakuhachiVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Shakuhachi</div>
+          <div id="shakuhachiVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="hangVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Hang</div>
+          <div id="hangVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="kalimbaVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Kalimba</div>
+          <div id="kalimbaVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="marimbaVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Marimba</div>
+          <div id="marimbaVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="steelVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Steel Drum</div>
+          <div id="steelVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="choirVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Choir</div>
+          <div id="choirVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="chantVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Chant</div>
+          <div id="chantVolVal" class="knob-value">0%</div>
+        </div>
+        <div>
+          <div class="knob" data-param="subVol"><canvas width="56" height="56"></canvas></div>
+          <div class="knob-label">Sub Bass</div>
+          <div id="subVolVal" class="knob-value">0%</div>
         </div>
       </div>
     </div>
@@ -480,8 +698,8 @@
     let reverbGain = ctx.createGain();
     let delay = ctx.createDelay(2);
     let delayGain = ctx.createGain();
-    let chorusLFO, chorusDelayL, chorusDelayR;
     let binauralLeft, binauralRight;
+    let isochronicGain;
 
     // Connect chain
     masterGain.connect(reverb).connect(reverbGain).connect(ctx.destination);
@@ -518,10 +736,25 @@
       binauralRight.start();
     }
 
+    // Isochronic pulse
+    function createIsochronic(freq) {
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      const osc = ctx.createOscillator();
+      osc.frequency.value = freq;
+      osc.connect(gain).connect(masterGain);
+      osc.start();
+      isochronicGain = gain;
+      setInterval(() => {
+        gain.gain.setValueAtTime(0.5, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+      }, 1000 / 7.83);
+    }
+
     // Oscillators
     let coreOsc, phiOscs = [], schumannOsc, vortexOsc;
-    let kickOsc, snareNoise;
-    let kickInterval, snareInterval;
+    let kickOsc, snareNoise, tom1Osc, tom2Osc, rimNoise, shakerNoise;
+    let drumInterval;
 
     // ==================== KNOBS ====================
     class Knob {
@@ -571,13 +804,11 @@
         const center = size / 2;
         const radius = 20;
         ctx.clearRect(0, 0, size, size);
-        // Track
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 5;
         ctx.beginPath();
         ctx.arc(center, center, radius, 0, Math.PI * 2);
         ctx.stroke();
-        // Fill
         const angle = ((this.value - this.min) / (this.max - this.min)) * 270 - 135;
         const rad = (angle * Math.PI) / 180;
         ctx.strokeStyle = 'var(--knob-fill)';
@@ -585,12 +816,10 @@
         ctx.beginPath();
         ctx.arc(center, center, radius, -Math.PI * 0.75, rad);
         ctx.stroke();
-        // Center dot
         ctx.fillStyle = '#fff';
         ctx.beginPath();
         ctx.arc(center + radius * Math.cos(rad), center + radius * Math.sin(rad), 3, 0, Math.PI * 2);
         ctx.fill();
-        // Value
         const valEl = document.getElementById(this.param + 'Val');
         if (valEl) {
           valEl.textContent = 
@@ -603,6 +832,8 @@
       }
       updateAudio() {
         const v = this.value;
+        const gainNode = instruments[this.param.replace('Vol', '')];
+        if (gainNode) gainNode.gain.setValueAtTime(v/100, ctx.currentTime);
         switch(this.param) {
           case 'phiVol0': phiOscs[0]?.gain.setValueAtTime(v/100, ctx.currentTime); break;
           case 'phiVol1': phiOscs[1]?.gain.setValueAtTime(v/100, ctx.currentTime); break;
@@ -612,10 +843,7 @@
           case 'phiVol5': phiOscs[5]?.gain.setValueAtTime(v/100, ctx.currentTime); break;
           case 'schumannVol': schumannOsc?.gain.setValueAtTime(v/100, ctx.currentTime); break;
           case 'vortexVol': vortexOsc?.gain.setValueAtTime(v/100, ctx.currentTime); break;
-          case 'kickVol': kickOsc?.gain.setValueAtTime(v/100, ctx.currentTime); break;
-          case 'snareVol': snareNoise?.gain.setValueAtTime(v/100, ctx.currentTime); break;
           case 'reverbWet': reverbGain.gain.setValueAtTime(v/100, ctx.currentTime); break;
-          case 'reverbDecay': break;
           case 'delayTime': delay.delayTime.setValueAtTime(v, ctx.currentTime); break;
           case 'delayFeedback': delayGain.gain.setValueAtTime(v/100, ctx.currentTime); break;
         }
@@ -624,18 +852,51 @@
 
     // Initialize Knobs
     const knobs = [
+      // Phi
       new Knob(document.querySelector('[data-param="phiVol0"]'), 'phiVol0', 0, 100, 1, 50, '%'),
       new Knob(document.querySelector('[data-param="phiVol1"]'), 'phiVol1', 0, 100, 1, 31, '%'),
       new Knob(document.querySelector('[data-param="phiVol2"]'), 'phiVol2', 0, 100, 1, 19, '%'),
       new Knob(document.querySelector('[data-param="phiVol3"]'), 'phiVol3', 0, 100, 1, 12, '%'),
       new Knob(document.querySelector('[data-param="phiVol4"]'), 'phiVol4', 0, 100, 1, 7, '%'),
       new Knob(document.querySelector('[data-param="phiVol5"]'), 'phiVol5', 0, 100, 1, 5, '%'),
+      // Earth/Tesla
       new Knob(document.querySelector('[data-param="schumannVol"]'), 'schumannVol', 0, 30, 1, 10, '%'),
       new Knob(document.querySelector('[data-param="vortexVol"]'), 'vortexVol', 0, 30, 1, 8, '%'),
+      // Drums
       new Knob(document.querySelector('[data-param="kickVol"]'), 'kickVol', 0, 100, 1, 0, '%'),
       new Knob(document.querySelector('[data-param="kickRate"]'), 'kickRate', 30, 180, 1, 60, 'BPM'),
       new Knob(document.querySelector('[data-param="snareVol"]'), 'snareVol', 0, 100, 1, 0, '%'),
       new Knob(document.querySelector('[data-param="snareRate"]'), 'snareRate', 0, 8, 1, 0),
+      new Knob(document.querySelector('[data-param="tom1Vol"]'), 'tom1Vol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="tom2Vol"]'), 'tom2Vol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="rimVol"]'), 'rimVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="shakerVol"]'), 'shakerVol', 0, 100, 1, 0, '%'),
+      // Instruments (25)
+      new Knob(document.querySelector('[data-param="harpVol"]'), 'harpVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="sistrumVol"]'), 'sistrumVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="fluteVol"]'), 'fluteVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="violinVol"]'), 'violinVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="celloVol"]'), 'celloVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="pianoVol"]'), 'pianoVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="bellVol"]'), 'bellVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="gongVol"]'), 'gongVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="drumVol"]'), 'drumVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="rainstickVol"]'), 'rainstickVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="windchimeVol"]'), 'windchimeVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="tibetanVol"]'), 'tibetanVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="crystalVol"]'), 'crystalVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="didgeridooVol"]'), 'didgeridooVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="dudukVol"]'), 'dudukVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="kotoVol"]'), 'kotoVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="shakuhachiVol"]'), 'shakuhachiVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="hangVol"]'), 'hangVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="kalimbaVol"]'), 'kalimbaVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="marimbaVol"]'), 'marimbaVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="steelVol"]'), 'steelVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="choirVol"]'), 'choirVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="chantVol"]'), 'chantVol', 0, 100, 1, 0, '%'),
+      new Knob(document.querySelector('[data-param="subVol"]'), 'subVol', 0, 100, 1, 0, '%'),
+      // Effects
       new Knob(document.querySelector('[data-param="reverbWet"]'), 'reverbWet', 0, 100, 1, 40, '%'),
       new Knob(document.querySelector('[data-param="reverbDecay"]'), 'reverbDecay', 1, 10, 0.1, 3.0, 's'),
       new Knob(document.querySelector('[data-param="delayTime"]'), 'delayTime', 0.1, 2, 0.001, 0.618, 's'),
@@ -643,6 +904,47 @@
       new Knob(document.querySelector('[data-param="chorusDepth"]'), 'chorusDepth', 0, 0.02, 0.001, 0.008),
       new Knob(document.querySelector('[data-param="chorusRate"]'), 'chorusRate', 0.1, 2, 0.1, 0.3, 'Hz')
     ];
+
+    // Instruments object
+    let instruments = {};
+
+    // Drum Patterns
+    const drumPatterns = {
+      basic: [
+        [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0], // Kick
+        [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0], // Snare
+        [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0], // Tom1
+        [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0], // Tom2
+        [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0], // Rim
+        [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1]  // Shaker
+      ],
+      tribal: [
+        [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,1,0,0],
+        [0,1,0,0, 0,1,0,0, 0,1,0,0, 0,1,1,0],
+        [0,0,0,1, 0,0,0,1, 0,0,0,1, 0,0,0,1],
+        [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
+        [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0],
+        [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0]
+      ],
+      dnb: [
+        [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
+        [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0],
+        [0,1,0,1, 0,1,0,1, 0,1,0,1, 0,1,0,1],
+        [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0],
+        [0,1,0,0, 0,1,0,0, 0,1,0,0, 0,1,0,0],
+        [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1]
+      ],
+      house: [
+        [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
+        [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0],
+        [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+        [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+        [0,1,0,1, 0,1,0,1, 0,1,0,1, 0,1,0,1],
+        [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0]
+      ]
+    };
+
+    let currentPattern = 'basic';
 
     // ==================== CORE LOGIC ====================
     const phi = 1.618033988749895;
@@ -654,6 +956,8 @@
       createPhiCascade();
       createSchumann();
       createVortex();
+      createIsochronic();
+      createAllInstruments();
       startDrums();
       isPlaying = true;
       document.getElementById('playBtn').classList.add('playing');
@@ -662,9 +966,9 @@
     }
 
     function stopAudio() {
-      [coreOsc, ...phiOscs, schumannOsc, vortexOsc, kickOsc, snareNoise, binauralLeft, binauralRight].forEach(o => o?.stop());
-      clearInterval(kickInterval);
-      clearInterval(snareInterval);
+      Object.values(instruments).forEach(i => i.osc?.stop());
+      [coreOsc, ...phiOscs, schumannOsc, vortexOsc, kickOsc, snareNoise, tom1Osc, tom2Osc, rimNoise, shakerNoise, binauralLeft, binauralRight].forEach(o => o?.stop());
+      clearInterval(drumInterval);
       isPlaying = false;
       document.getElementById('playBtn').classList.remove('playing');
       document.getElementById('playBtn').textContent = 'Play';
@@ -675,7 +979,7 @@
       const freq = parseFloat(document.getElementById('coreFreq').value);
       const binaural = document.getElementById('binauralToggle').checked;
       if (binaural) {
-        setupBinaural(freq, 7.83); // Schumann beat
+        setupBinaural(freq, 7.83);
       } else {
         coreOsc = ctx.createOscillator();
         coreOsc.frequency.value = freq;
@@ -699,7 +1003,7 @@
         gain.gain.value = knobs[i].value / 100;
         osc.connect(gain).connect(masterGain);
         osc.start();
-        phiOscs.push(osc);
+        phiOscs[i] = { osc, gain };
       }
     }
 
@@ -725,22 +1029,140 @@
       vortexOsc.start();
     }
 
+    function createIsochronic() {
+      if (!document.getElementById('isochronicToggle').checked) return;
+      createIsochronic(7.83);
+    }
+
+    function createAllInstruments() {
+      const base = parseFloat(document.getElementById('coreFreq').value);
+      const instList = [
+        { name: 'harp', freq: 432, type: 'sine' },
+        { name: 'sistrum', freq: 0, type: 'noise' },
+        { name: 'flute', freq: base * 2, type: 'sine' },
+        { name: 'violin', freq: base * 1.5, type: 'sawtooth' },
+        { name: 'cello', freq: base / 2, type: 'triangle' },
+        { name: 'piano', freq: base, type: 'square' },
+        { name: 'bell', freq: 2000, type: 'sine' },
+        { name: 'gong', freq: 60, type: 'sine' },
+        { name: 'drum', freq: 80, type: 'sine' },
+        { name: 'rainstick', freq: 0, type: 'noise' },
+        { name: 'windchime', freq: 3000, type: 'sine' },
+        { name: 'tibetan', freq: 136.1, type: 'sine' },
+        { name: 'crystal', freq: 528, type: 'sine' },
+        { name: 'didgeridoo', freq: 27, type: 'sine' },
+        { name: 'duduk', freq: base * 0.75, type: 'sawtooth' },
+        { name: 'koto', freq: base * 1.25, type: 'square' },
+        { name: 'shakuhachi', freq: base * 1.8, type: 'sine' },
+        { name: 'hang', freq: base * 1.618, type: 'triangle' },
+        { name: 'kalimba', freq: base * 2.5, type: 'square' },
+        { name: 'marimba', freq: base * 3, type: 'sine' },
+        { name: 'steel', freq: base * 2.2, type: 'triangle' },
+        { name: 'choir', freq: base, type: 'sawtooth' },
+        { name: 'chant', freq: 111, type: 'sine' },
+        { name: 'sub', freq: 27, type: 'sine' }
+      ];
+      instList.forEach(inst => {
+        if (inst.type === 'noise') {
+          const noise = ctx.createBufferSource();
+          const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+          noise.buffer = buffer;
+          noise.loop = true;
+          const gain = ctx.createGain();
+          gain.gain.value = 0;
+          noise.connect(gain).connect(masterGain);
+          noise.start();
+          instruments[inst.name] = { osc: noise, gain };
+        } else {
+          const osc = ctx.createOscillator();
+          osc.frequency.value = inst.freq;
+          osc.type = inst.type;
+          const gain = ctx.createGain();
+          gain.gain.value = 0;
+          osc.connect(gain).connect(masterGain);
+          osc.start();
+          instruments[inst.name] = { osc, gain };
+        }
+      });
+    }
+
     function startDrums() {
-      const kickVol = knobs.find(k => k.param === 'kickVol').value;
-      if (kickVol > 0 && document.getElementById('kickToggle').checked) {
-        kickInterval = setInterval(() => {
+      const bpm = knobs.find(k => k.param === 'kickRate').value;
+      const stepDuration = 60000 / (bpm * 4); // 16th notes
+
+      drumInterval = setInterval(() => {
+        const pattern = drumPatterns[currentPattern];
+        const step = Math.floor(ctx.currentTime * 1000 / stepDuration) % 16;
+
+        // Kick
+        if (pattern[0][step] && document.getElementById('kickToggle').checked) {
           kickOsc = ctx.createOscillator();
           kickOsc.frequency.setValueAtTime(150, ctx.currentTime);
           kickOsc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.1);
           const gain = ctx.createGain();
-          gain.gain.setValueAtTime(kickVol/100, ctx.currentTime);
+          gain.gain.setValueAtTime(knobs.find(k => k.param === 'kickVol').value / 100, ctx.currentTime);
           gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
           kickOsc.connect(gain).connect(masterGain);
           kickOsc.start();
           kickOsc.stop(ctx.currentTime + 0.3);
-        }, 60000 / knobs.find(k => k.param === 'kickRate').value);
-      }
+        }
+
+        // Snare
+        if (pattern[1][step] && document.getElementById('snareToggle').checked) {
+          snareNoise = ctx.createBufferSource();
+          const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+          snareNoise.buffer = buffer;
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(knobs.find(k => k.param === 'snareVol').value / 100, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+          snareNoise.connect(gain).connect(masterGain);
+          snareNoise.start();
+          snareNoise.stop(ctx.currentTime + 0.2);
+        }
+
+        // Toms, Rim, Shaker
+        ['tom1', 'tom2', 'rim', 'shaker'].forEach((drum, i) => {
+          if (pattern[i+2][step] && document.getElementById(drum + 'Toggle').checked) {
+            const vol = knobs.find(k => k.param === drum + 'Vol').value / 100;
+            if (vol > 0) {
+              const source = drum === 'shaker' || drum === 'rim' ? ctx.createBufferSource() : ctx.createOscillator();
+              if (drum === 'shaker' || drum === 'rim') {
+                const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let j = 0; j < data.length; j++) data[j] = (Math.random() > 0.5 ? 1 : -1) * 0.8;
+                source.buffer = buffer;
+                source.loop = false;
+              } else {
+                source.frequency.value = { tom1: 120, tom2: 90 }[drum];
+              }
+              const gain = ctx.createGain();
+              gain.gain.setValueAtTime(vol, ctx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+              source.connect(gain).connect(masterGain);
+              source.start();
+              source.stop(ctx.currentTime + 0.2);
+            }
+          }
+        });
+      }, stepDuration);
     }
+
+    // Pattern buttons
+    document.querySelectorAll('.pattern-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.pattern-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentPattern = btn.dataset.pattern;
+        if (isPlaying) {
+          clearInterval(drumInterval);
+          startDrums();
+        }
+      });
+    });
 
     // Play button
     document.getElementById('playBtn').addEventListener('click', () => {
@@ -756,7 +1178,7 @@
       if (btn.classList.contains('recording')) {
         mediaRecorder.stop();
         btn.classList.remove('recording');
-        btn.textContent = '●';
+        btn.textContent = '[Record]';
       } else {
         audioChunks = [];
         const dest = ctx.createMediaStreamDestination();
@@ -807,6 +1229,7 @@
       const preset = {
         coreFreq: document.getElementById('coreFreq').value,
         binaural: document.getElementById('binauralToggle').checked,
+        isochronic: document.getElementById('isochronicToggle').checked,
         ...Object.fromEntries(knobs.map(k => [k.param, k.value]))
       };
       localStorage.setItem(`preset_${name}`, JSON.stringify(preset));
@@ -820,6 +1243,19 @@
       btn.textContent = key.replace('preset_', '');
       btn.dataset.preset = key;
       document.querySelector('.preset-grid').appendChild(btn);
+      btn.addEventListener('click', () => {
+        const preset = JSON.parse(localStorage.getItem(key));
+        document.getElementById('coreFreq').value = preset.coreFreq;
+        document.getElementById('binauralToggle').checked = preset.binaural;
+        document.getElementById('isochronicToggle').checked = preset.isochronic;
+        Object.keys(preset).forEach(param => {
+          if (param !== 'coreFreq' && param !== 'binaural' && param !== 'isochronic') {
+            const knob = knobs.find(k => k.param === param);
+            if (knob) knob.setValue(preset[param]);
+          }
+        });
+        if (isPlaying) { stopAudio(); startAudio(); }
+      });
     });
 
     // PWA
